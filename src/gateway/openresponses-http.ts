@@ -947,6 +947,7 @@ export async function handleOpenResponsesHttpRequest(
   let finalizeScheduled = false;
   let terminalLifecyclePhase: "end" | "error" = "end";
   let terminalStreamError: string | undefined;
+  const readFinalization = () => finalizeRequested;
 
   const maybeFinalize = () => {
     if (closed || finalizeScheduled || !finalizeRequested || !finalUsage) {
@@ -1267,7 +1268,7 @@ export async function handleOpenResponsesHttpRequest(
       }
 
       finalUsage = extractUsageFromResult(result);
-      const priorFinalization = finalizeRequested;
+      const priorFinalization = readFinalization();
       const outcome = resolveOpenAiHttpAgentRunTerminalOutcome(result, terminalOutcome);
       terminalOutcome = outcome;
       if (outcome.reason !== "completed") {
@@ -1433,8 +1434,9 @@ export async function handleOpenResponsesHttpRequest(
 
         accumulatedText = content;
         sawAssistantDelta = true;
-        if (finalizeRequested?.status === "completed") {
-          finalizeRequested = { ...finalizeRequested, text: content };
+        const currentFinalization = readFinalization();
+        if (currentFinalization?.status === "completed") {
+          finalizeRequested = { ...currentFinalization, text: content };
         }
 
         writeSseEvent(res, {
