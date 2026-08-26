@@ -322,10 +322,10 @@ async function refreshChat(
   void historyRefresh;
   void secondaryRefresh;
   if (opts?.awaitHistory === true) {
-    await historyRefresh;
-    return;
+    return await historyRefresh;
   }
   await Promise.resolve();
+  return undefined;
 }
 
 export function refreshPageChat(host: ChatPageHost, opts?: ChatRefreshOptions) {

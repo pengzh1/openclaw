@@ -31,6 +31,7 @@ import {
   SESSION_MUTATION_TEST_METHODS,
   sessionMutationGatewayHello,
 } from "../../test-helpers/gateway-methods.ts";
+import type { ChatHistoryResult } from "./chat-history.ts";
 import { attachChatRealtimeActions, createInitialChatRealtimeState } from "./chat-realtime.ts";
 import type { ChatPageHost } from "./chat-state-host.ts";
 import { createBackgroundTasksProps } from "./components/chat-background-tasks.ts";
@@ -114,7 +115,7 @@ export type TestChatPane = HTMLElement & {
   performUpdate: () => void;
   deferSessionHydrationUntilTranscript: (
     sessionKey: string,
-    transcriptLoad: Promise<unknown>,
+    transcriptLoad: Promise<ChatHistoryResult | undefined>,
   ) => void;
   paneTitle: string;
   catalogSession: SessionCatalogSession | null;

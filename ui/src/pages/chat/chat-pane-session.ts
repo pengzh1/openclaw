@@ -25,7 +25,7 @@ import { resolveSessionKey, scopedAgentParamsForSession } from "../../lib/sessio
 import { parseAgentSessionKey } from "../../lib/sessions/session-key.ts";
 import { releaseChatAttachmentPayloads } from "./attachment-payload-store.ts";
 import { catalogMessageId } from "./catalog-message-id.ts";
-import { loadChatBranches } from "./chat-history.ts";
+import { loadChatBranches, type ChatHistoryResult } from "./chat-history.ts";
 import {
   CATALOG_TOOL_RESULT_PREVIEW_MAX_CHARS,
   catalogRawResult,
@@ -35,7 +35,11 @@ import {
 } from "./chat-pane-shared.ts";
 import { ChatPaneTaskSuggestions } from "./chat-pane-task-suggestions.ts";
 import type { ChatPageHost } from "./chat-state-host.ts";
-import { resolveChatAgentId, saveRouteSessionSettings } from "./chat-state-route.ts";
+import {
+  resolveChatAgentId,
+  saveRouteSessionSettings,
+  selectedChatSessionRow,
+} from "./chat-state-route.ts";
 import {
   dismissChatPullRequest,
   listDismissedChatPullRequests,
@@ -171,7 +175,7 @@ export abstract class ChatPaneSession extends ChatPaneTaskSuggestions {
 
   protected deferSessionHydrationUntilTranscript(
     sessionKey: string,
-    transcriptLoad: Promise<unknown>,
+    transcriptLoad: Promise<ChatHistoryResult | undefined>,
   ): void {
     const state = this.state;
     if (!state) {
@@ -195,13 +199,13 @@ export abstract class ChatPaneSession extends ChatPaneTaskSuggestions {
       state.connected &&
       state.client === client &&
       state.sessionKey === sessionKey;
-    const scheduleHydration = () => {
+    const scheduleHydration = (historyCommitted: boolean) => {
       if (!isCurrent()) {
         retireIfCurrent();
         return;
       }
       if (!this.presented) {
-        this.pendingDeferredSessionHydration = scheduleHydration;
+        this.pendingDeferredSessionHydration = () => scheduleHydration(historyCommitted);
         return;
       }
       this.pendingDeferredSessionHydration = null;
@@ -210,19 +214,25 @@ export abstract class ChatPaneSession extends ChatPaneTaskSuggestions {
       state.renderLifecycle.afterCommit((complete) => {
         if (isCurrent() && this.presented) {
           this.deferredSessionHydrationActive = false;
+          if (historyCommitted) {
+            this.markSessionRead(selectedChatSessionRow(state));
+          }
           void loadChatBranches(state);
           void this.probeSessionDiscussion(sessionKey);
           this.hydrateSessionCompanion(sessionKey);
           void this.refreshSessionPullRequests();
         } else if (isCurrent()) {
-          this.pendingDeferredSessionHydration = scheduleHydration;
+          this.pendingDeferredSessionHydration = () => scheduleHydration(historyCommitted);
         } else {
           retireIfCurrent();
         }
         complete();
       });
     };
-    void transcriptLoad.then(scheduleHydration, scheduleHydration);
+    void transcriptLoad.then(
+      (history) => scheduleHydration(history !== undefined),
+      () => scheduleHydration(false),
+    );
   }
 
   protected resumeDeferredSessionHydration(): boolean {
