@@ -10,8 +10,6 @@ import { requestHeartbeat } from "./heartbeat-wake.js";
 describe("startHeartbeatRunner targeted unscheduled wake dispatch", () => {
   type RunOnce = Parameters<typeof startHeartbeatRunner>[0]["runOnce"];
   type MockRunOnce = RunOnce & { mock: { calls: unknown[][] } };
-  const TEST_SCHEDULER_SEED = "heartbeat-runner-test-seed";
-
   function useFakeHeartbeatTime() {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(0));
@@ -50,7 +48,6 @@ describe("startHeartbeatRunner targeted unscheduled wake dispatch", () => {
     const runner = startHeartbeatRunner({
       cfg: params.cfg,
       runOnce: params.runSpy,
-      stableSchedulerSeed: TEST_SCHEDULER_SEED,
     });
 
     requestHeartbeat(params.wake);
@@ -162,7 +159,6 @@ describe("startHeartbeatRunner targeted unscheduled wake dispatch", () => {
     const runner = startHeartbeatRunner({
       cfg: { agents: { list: [{ id: "main", heartbeat: { every: "30m" } }] } } as OpenClawConfig,
       runOnce: runSpy,
-      stableSchedulerSeed: TEST_SCHEDULER_SEED,
     });
 
     requestHeartbeat({
