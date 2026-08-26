@@ -56,6 +56,7 @@ const QUEUED_PROMPT =
 const QUEUED_REPLY_MARKER = "GATEWAY_REPEATED_REQUEST_QUEUED_OK";
 const RECOVERY_REASON = "repeated_model_requests_without_progress";
 const PRODUCTION_RECOVERY_BOUND_MS = 360_000;
+const MODEL_REQUEST_ALLOWANCE_SECONDS = 90;
 const RECOVERY_PROGRESS_INTERVAL_MS = 60_000;
 const HISTORY_RETRY_TIMEOUT_MS = 60_000;
 const HISTORY_RETRY_INTERVAL_MS = 250;
@@ -294,7 +295,27 @@ describe("Gateway repeated-request recovery", () => {
         },
         transportBaseUrl: "http://127.0.0.1",
         controlUiEnabled: false,
-        mutateConfig: (config) => ({ ...config, diagnostics: { enabled: true } }),
+        mutateConfig: (config) => {
+          const models = config.models;
+          const provider = models?.providers?.["mock-openai"];
+          if (!models || !provider) {
+            throw new Error("mock-openai provider config unavailable");
+          }
+          return {
+            ...config,
+            diagnostics: { enabled: true },
+            models: {
+              ...models,
+              providers: {
+                ...models.providers,
+                "mock-openai": {
+                  ...provider,
+                  timeoutSeconds: MODEL_REQUEST_ALLOWANCE_SECONDS,
+                },
+              },
+            },
+          };
+        },
       });
       const { gateway } = harness;
 
