@@ -2131,6 +2131,7 @@ describe("openclaw state database", () => {
     expect(detectOpenClawStateDatabaseSchemaMigrations(options)).toEqual([
       { kind: "commitments-retirement-v7", path: fixture.databasePath },
       { kind: "state-table-retirement-v10", path: fixture.databasePath },
+      { kind: "singleton-state-foldin-v11", path: fixture.databasePath },
       { kind: "audit-events-v2", path: fixture.databasePath },
       { kind: "strict-tables-v3", path: fixture.databasePath },
     ]);
@@ -2143,8 +2144,9 @@ describe("openclaw state database", () => {
       changes: [
         "Retired shared state commitments table and indexes",
         "Retired six dead shared-state tables (v10)",
+        "Folded singleton state tables into config_machine_state (v11)",
         "Migrated shared state audit event ledger → versioned message lifecycle schema",
-        "Migrated shared state tables to SQLite STRICT typing (64)",
+        "Migrated shared state tables to SQLite STRICT typing (58)",
       ],
       warnings: [],
     });
