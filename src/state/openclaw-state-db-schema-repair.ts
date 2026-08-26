@@ -29,12 +29,15 @@ import {
   tablePrimaryKeyColumns,
 } from "./openclaw-state-db-schema-helpers.js";
 import { OpenClawStateDatabaseSchemaMigrationRequiredError } from "./openclaw-state-db-schema-migration-required.js";
+import { FOLDED_SINGLETON_STATE_TABLES_V11 } from "./openclaw-state-db-schema-v11-foldin.js";
 import * as sessionWatchMigration from "./openclaw-state-db-session-watch-migration.js";
 import {
   resolveOpenClawAgentDatabaseStoredPath,
   resolveOpenClawStateDirForDatabasePath,
 } from "./openclaw-state-db.paths.js";
 import { OPENCLAW_STATE_SCHEMA_SQL } from "./openclaw-state-schema.js";
+
+export { migrateSingletonStateFoldInV11 } from "./openclaw-state-db-schema-v11-foldin.js";
 
 const RETIRED_DEAD_STATE_TABLES_V10 = [
   "agent_model_catalogs",
@@ -725,6 +728,12 @@ export function detectOpenClawStateDatabaseSchemaMigrationsFromDatabase(
     RETIRED_DEAD_STATE_TABLES_V10.some((tableName) => tableExists(db, tableName))
   ) {
     migrations.push({ kind: "state-table-retirement-v10", path: pathname });
+  }
+  if (
+    userVersion < 11 &&
+    FOLDED_SINGLETON_STATE_TABLES_V11.some((tableName) => tableExists(db, tableName))
+  ) {
+    migrations.push({ kind: "singleton-state-foldin-v11", path: pathname });
   }
   if (!hasCanonicalAgentDatabasesPrimaryKey(db)) {
     migrations.push({ kind: "agent-databases-composite-primary-key", path: pathname });

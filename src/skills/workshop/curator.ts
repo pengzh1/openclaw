@@ -6,6 +6,7 @@ import {
   getNodeSqliteKysely,
 } from "../../infra/kysely-sync.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
+import { readConfigMachineState } from "../../state/config-machine-state.js";
 import type { DB as OpenClawStateDatabase } from "../../state/openclaw-state-db.generated.js";
 import {
   openOpenClawStateDatabase,
@@ -21,14 +22,10 @@ import {
 } from "./collection-review-state.js";
 
 const log = createSubsystemLogger("skills/curator");
-const CURATOR_STATE_ID = 1;
 let loggedArchivedSkillReadFailure = false;
 
 type SkillLifecycleState = "active" | "archived" | "stale";
-type CuratorDatabase = Pick<
-  OpenClawStateDatabase,
-  "skill_curator_state" | "skill_lifecycle" | "skill_usage"
->;
+type CuratorDatabase = Pick<OpenClawStateDatabase, "skill_lifecycle" | "skill_usage">;
 type SkillOverlapCandidate = { left: string; right: string; score: number };
 
 export type SkillCuratorStatus = {
@@ -75,37 +72,32 @@ function parseLifecycleState(value: string): SkillLifecycleState {
   throw new Error(`Invalid legacy skill lifecycle state: ${value}`);
 }
 
-function parseOverlapCandidates(value: string | null | undefined): SkillOverlapCandidate[] {
-  if (!value) {
+function parseOverlapCandidates(value: unknown): SkillOverlapCandidate[] {
+  const overlaps = asNullableRecord(value)?.overlaps;
+  if (!Array.isArray(overlaps)) {
     return [];
   }
-  try {
-    const overlaps = asNullableRecord(JSON.parse(value))?.overlaps;
-    if (!Array.isArray(overlaps)) {
-      return [];
-    }
-    return overlaps.flatMap((entry) => {
-      const overlap = asNullableRecord(entry);
-      return overlap &&
-        typeof overlap.left === "string" &&
-        typeof overlap.right === "string" &&
-        typeof overlap.score === "number"
-        ? [{ left: overlap.left, right: overlap.right, score: overlap.score }]
-        : [];
-    });
-  } catch {
-    return [];
-  }
+  return overlaps.flatMap((entry) => {
+    const overlap = asNullableRecord(entry);
+    return overlap &&
+      typeof overlap.left === "string" &&
+      typeof overlap.right === "string" &&
+      typeof overlap.score === "number"
+      ? [{ left: overlap.left, right: overlap.right, score: overlap.score }]
+      : [];
+  });
 }
 
 export function getSkillCuratorStatus(
   options: OpenClawStateDatabaseOptions = {},
 ): SkillCuratorStatus {
   const { database, kysely } = curatorDb(options);
-  const state = executeSqliteQueryTakeFirstSync(
-    database.db,
-    kysely.selectFrom("skill_curator_state").selectAll().where("id", "=", CURATOR_STATE_ID),
-  );
+  const state = readConfigMachineState<{
+    lastAttemptAtMs: number;
+    lastSuccessAtMs: number | null;
+    lastError: string | null;
+    lastResult: Record<string, unknown>;
+  }>("skills.curatorState", options);
   const reviewOutcomes = readSkillReviewOutcomes(options);
   const rows = executeSqliteQuerySync(
     database.db,
@@ -140,14 +132,14 @@ export function getSkillCuratorStatus(
     });
   }
   return {
-    lastAttemptAtMs: state?.last_attempt_at_ms ?? null,
-    lastSuccessAtMs: state?.last_success_at_ms ?? null,
-    lastError: state?.last_error ?? null,
+    lastAttemptAtMs: state?.lastAttemptAtMs ?? null,
+    lastSuccessAtMs: state?.lastSuccessAtMs ?? null,
+    lastError: state?.lastError ?? null,
     collectionReview: reviewOutcomes.collectionReviews,
     experienceReview: reviewOutcomes.experienceReviews,
     counts,
     skills,
-    overlaps: parseOverlapCandidates(state?.last_result_json),
+    overlaps: parseOverlapCandidates(state?.lastResult),
   };
 }
 

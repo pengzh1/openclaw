@@ -55,6 +55,78 @@
       "table": "model_capability_cache",
       "indexes": ["idx_model_capability_cache_provider_updated"],
       "note": "Never had a shipped writer; retired in state schema 10."
+    },
+    {
+      "database": "state",
+      "status": "completed",
+      "targetVersion": 11,
+      "table": "clawhub_promotions_feed_state",
+      "indexes": [],
+      "note": "Folded into config_machine_state key clawhub.promotionsFeed."
+    },
+    {
+      "database": "state",
+      "status": "completed",
+      "targetVersion": 11,
+      "table": "cron_store_epochs",
+      "indexes": [],
+      "note": "Retired write-only cron store epoch bookkeeping in state schema 11."
+    },
+    {
+      "database": "state",
+      "status": "completed",
+      "targetVersion": 11,
+      "table": "model_catalog_remote",
+      "indexes": [],
+      "note": "Folded into config_machine_state key modelCatalog.remote."
+    },
+    {
+      "database": "state",
+      "status": "completed",
+      "targetVersion": 11,
+      "table": "onboarding_recommendations",
+      "indexes": [],
+      "note": "Folded into config_machine_state keys onboarding.recommendations.<workspaceKey>."
+    },
+    {
+      "database": "state",
+      "status": "completed",
+      "targetVersion": 11,
+      "table": "skill_curator_state",
+      "indexes": [],
+      "note": "Folded into config_machine_state key skills.curatorState."
+    },
+    {
+      "database": "state",
+      "status": "completed",
+      "targetVersion": 11,
+      "table": "update_check_state",
+      "indexes": [],
+      "note": "Folded into config_machine_state key update.checkState."
+    },
+    {
+      "database": "state",
+      "status": "completed",
+      "targetVersion": 11,
+      "table": "voicewake_routing_config",
+      "indexes": [],
+      "note": "Folded into config_machine_state key voicewake.routing."
+    },
+    {
+      "database": "state",
+      "status": "completed",
+      "targetVersion": 11,
+      "table": "voicewake_routing_routes",
+      "indexes": ["idx_voicewake_routing_routes_trigger"],
+      "note": "Folded into config_machine_state key voicewake.routing."
+    },
+    {
+      "database": "state",
+      "status": "completed",
+      "targetVersion": 11,
+      "table": "voicewake_triggers",
+      "indexes": ["idx_voicewake_triggers_trigger"],
+      "note": "Folded into config_machine_state key voicewake.triggers."
     }
   ]
 }

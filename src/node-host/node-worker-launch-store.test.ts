@@ -312,7 +312,7 @@ describe("node worker launch store container identity", () => {
     expect(new NodeWorkerLaunchStore({ env }).get("container-launch")).toEqual(receipt);
   });
 
-  it("lets the exact v10 predecessor read and write a populated candidate container journal before candidate reopen", () => {
+  it("lets the exact v11 predecessor read and write a populated candidate container journal before candidate reopen", () => {
     const { database, env, store } = fixture();
     const databasePath = openOpenClawStateDatabase({ env }).path;
     const { planHash, supervisor } = claimLaunch(store, "candidate-container-launch");
@@ -330,7 +330,7 @@ describe("node worker launch store container identity", () => {
       nowMs: NOW_MS,
     });
     expect(hasContainerIdentityTable(database)).toBe(true);
-    expect(OPENCLAW_STATE_SCHEMA_VERSION).toBe(10);
+    expect(OPENCLAW_STATE_SCHEMA_VERSION).toBe(11);
     closeOpenClawStateDatabaseForTest();
 
     const companionStart = OPENCLAW_STATE_SCHEMA_SQL.indexOf(
@@ -358,11 +358,11 @@ describe("node worker launch store container identity", () => {
 
     const predecessor = new DatabaseSync(databasePath);
     try {
-      expect(predecessor.prepare("PRAGMA user_version").get()).toEqual({ user_version: 10 });
+      expect(predecessor.prepare("PRAGMA user_version").get()).toEqual({ user_version: 11 });
       expect(() =>
         assertSqliteSchemaContains(
           predecessor,
-          "predecessor v10 global schema",
+          "predecessor v11 global schema",
           predecessorSchema,
           predecessorCompatibility,
         ),

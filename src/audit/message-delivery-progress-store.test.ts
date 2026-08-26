@@ -10,6 +10,7 @@ import {
   openOpenClawStateDatabase,
 } from "../state/openclaw-state-db.js";
 import { STATE_SCHEMA_10_TO_9_DOWNGRADE_SQL } from "../state/openclaw-state-schema-v10-retirement.test-support.js";
+import { STATE_SCHEMA_11_TO_10_DOWNGRADE_SQL } from "../state/openclaw-state-schema-v11-foldin.test-support.js";
 import { recordAuditEvent } from "./audit-event-store.js";
 import type { OutboundMessageProgressInput } from "./audit-event-types.js";
 import {
@@ -138,10 +139,10 @@ describe("outbound message progress companion", () => {
     );
   });
 
-  it("stays absent through startup, reads, and terminal-only writes at schema v10", () => {
+  it("stays absent through startup, reads, and terminal-only writes at schema v11", () => {
     const database = databaseOptions();
     const opened = openOpenClawStateDatabase(database);
-    expect(OPENCLAW_STATE_SCHEMA_VERSION).toBe(10);
+    expect(OPENCLAW_STATE_SCHEMA_VERSION).toBe(11);
     expect(tableExists(opened.db, "outbound_message_progress")).toBe(false);
     expect(tableExists(opened.db, "outbound_message_execution_bindings")).toBe(false);
 
@@ -275,9 +276,9 @@ describe("outbound message progress companion", () => {
     openOpenClawStateDatabase(database).db.exec(
       "ALTER TABLE skill_workshop_proposals DROP COLUMN claim_released_time;",
     );
-    // The pinned reader is a v9-era build, so it refuses v10 databases by the
-    // version contract. Project the file back to the exact v9 shape with the
-    // documented 10→9 downgrade so the C04 same-version reader proof survives.
+    // The pinned reader is a v9-era build, so project through both documented
+    // downgrades to restore its exact schema and compatible version markers.
+    openOpenClawStateDatabase(database).db.exec(STATE_SCHEMA_11_TO_10_DOWNGRADE_SQL);
     openOpenClawStateDatabase(database).db.exec(STATE_SCHEMA_10_TO_9_DOWNGRADE_SQL);
     closeOpenClawStateDatabaseForTest();
 

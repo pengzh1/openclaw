@@ -146,6 +146,8 @@ function describeVoiceCallSchemaMigration(migration: OpenClawStateDatabaseSchema
       return "retired commitments storage -> removed table and indexes";
     case "state-table-retirement-v10":
       return "retired shared-state tables -> removed tables and indexes";
+    case "singleton-state-foldin-v11":
+      return "singleton state tables -> shared configuration state";
     case "worker-placement-execution-mode-v8":
       return "cloud worker placements -> execution-mode claims";
     case "operator-approvals-system-agent":
