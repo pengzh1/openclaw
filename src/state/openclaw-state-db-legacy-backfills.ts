@@ -126,6 +126,43 @@ export function repairLegacyTaskDeliveryStatuses(db: DatabaseSync): void {
   `);
 }
 
+/**
+ * Settles cron task rows that a released sidecar importer (v2026.8.1) copied
+ * as nonterminal `reconciling` before archiving their legacy source. Those
+ * rows can never reach this code's fresh-sidecar settlement path, and the
+ * task registry rejects the legacy status during hydration, so database open
+ * must settle them here with the same lost-state and delivery-suppression
+ * policy the importer applies to readable sidecars. Idempotent: settled rows
+ * no longer match, so repeat opens are no-ops.
+ */
+export function repairLegacyCronReconcilingTaskRows(db: DatabaseSync): void {
+  if (!tableExists(db, "task_runs") || !tableHasColumn(db, "task_runs", "status")) {
+    return;
+  }
+  if (tableExists(db, "task_delivery_state")) {
+    // Delivery state of a settled row is obsolete pending bookkeeping; the
+    // fresh import skips it, so already-imported copies are removed here.
+    // Scoped to rows still marked reconciling — pre-existing lost rows keep
+    // their recorded delivery state — and ordered before the settlement
+    // update so the row scan and delete observe one matching population.
+    db.exec(`
+      DELETE FROM task_delivery_state
+      WHERE task_id IN (
+        SELECT task_id FROM task_runs
+        WHERE runtime = 'cron' AND status = 'reconciling'
+      );
+    `);
+  }
+  db.exec(`
+    UPDATE task_runs
+    SET status = 'lost',
+        delivery_status = 'not_applicable',
+        notify_policy = 'silent'
+    WHERE runtime = 'cron'
+      AND status = 'reconciling';
+  `);
+}
+
 type LegacyRetainedResultRow = {
   run_id: string;
   payload_json: string;

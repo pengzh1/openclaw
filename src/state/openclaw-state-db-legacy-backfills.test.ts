@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 import { useAutoCleanupTempDirTracker } from "../../test/helpers/temp-dir.js";
 import {
+  repairLegacyCronReconcilingTaskRows,
   repairLegacySubagentExecutionPayloads,
   repairLegacySubagentRetainedResults,
 } from "./openclaw-state-db-legacy-backfills.js";
@@ -352,5 +353,120 @@ describe("repairLegacySubagentRetainedResults", () => {
     expect(
       db.prepare("SELECT progress_summary FROM task_runs WHERE task_id = ?").get("silent-task"),
     ).toEqual({ progress_summary: null });
+  });
+});
+
+describe("repairLegacyCronReconcilingTaskRows", () => {
+  function createTaskTables() {
+    const db = new DatabaseSync(":memory:");
+    db.exec(`
+      CREATE TABLE task_runs (
+        task_id TEXT PRIMARY KEY,
+        runtime TEXT NOT NULL,
+        status TEXT NOT NULL,
+        delivery_status TEXT NOT NULL,
+        notify_policy TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE task_delivery_state (
+        task_id TEXT PRIMARY KEY,
+        requester_origin_json TEXT,
+        last_notified_event_at INTEGER
+      ) STRICT;
+    `);
+    return db;
+  }
+
+  function insertTask(
+    db: DatabaseSync,
+    row: { taskId: string; runtime: string; status: string; deliveryStatus: string },
+  ) {
+    db.prepare(
+      `INSERT INTO task_runs (task_id, runtime, status, delivery_status, notify_policy)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(row.taskId, row.runtime, row.status, row.deliveryStatus, "done_only");
+  }
+
+  it("settles imported reconciling cron rows and drops only their delivery state", () => {
+    const db = createTaskTables();
+    insertTask(db, {
+      taskId: "imported-reconciling",
+      runtime: "cron",
+      status: "reconciling",
+      deliveryStatus: "pending",
+    });
+    insertTask(db, {
+      taskId: "preexisting-lost",
+      runtime: "cron",
+      status: "lost",
+      deliveryStatus: "not_applicable",
+    });
+    insertTask(db, {
+      taskId: "running-cron",
+      runtime: "cron",
+      status: "running",
+      deliveryStatus: "not_applicable",
+    });
+    const insertDelivery = db.prepare(
+      `INSERT INTO task_delivery_state (task_id, requester_origin_json, last_notified_event_at)
+       VALUES (?, ?, ?)`,
+    );
+    insertDelivery.run("imported-reconciling", '{"channel":"test"}', 10);
+    insertDelivery.run("preexisting-lost", '{"channel":"test"}', 20);
+
+    repairLegacyCronReconcilingTaskRows(db);
+
+    expect(
+      db
+        .prepare("SELECT status, delivery_status, notify_policy FROM task_runs WHERE task_id = ?")
+        .get("imported-reconciling"),
+    ).toEqual({ status: "lost", delivery_status: "not_applicable", notify_policy: "silent" });
+    expect(
+      db.prepare("SELECT 1 FROM task_delivery_state WHERE task_id = ?").get("imported-reconciling"),
+    ).toBeUndefined();
+    // Pre-existing lost rows keep their recorded delivery state.
+    expect(
+      db.prepare("SELECT 1 FROM task_delivery_state WHERE task_id = ?").get("preexisting-lost"),
+    ).toBeDefined();
+    expect(
+      db.prepare("SELECT status FROM task_runs WHERE task_id = ?").get("running-cron"),
+    ).toEqual({ status: "running" });
+
+    // Idempotent: a second repair pass changes nothing.
+    repairLegacyCronReconcilingTaskRows(db);
+    expect(
+      db
+        .prepare("SELECT status, delivery_status, notify_policy FROM task_runs WHERE task_id = ?")
+        .get("imported-reconciling"),
+    ).toEqual({ status: "lost", delivery_status: "not_applicable", notify_policy: "silent" });
+    expect(
+      db.prepare("SELECT 1 FROM task_delivery_state WHERE task_id = ?").get("preexisting-lost"),
+    ).toBeDefined();
+  });
+
+  it("settles rows even when the delivery table is absent", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec(`
+      CREATE TABLE task_runs (
+        task_id TEXT PRIMARY KEY,
+        runtime TEXT NOT NULL,
+        status TEXT NOT NULL,
+        delivery_status TEXT NOT NULL,
+        notify_policy TEXT NOT NULL
+      ) STRICT;
+    `);
+    insertTask(db, {
+      taskId: "imported-reconciling",
+      runtime: "cron",
+      status: "reconciling",
+      deliveryStatus: "pending",
+    });
+
+    repairLegacyCronReconcilingTaskRows(db);
+
+    expect(
+      db
+        .prepare("SELECT status, delivery_status, notify_policy FROM task_runs WHERE task_id = ?")
+        .get("imported-reconciling"),
+    ).toEqual({ status: "lost", delivery_status: "not_applicable", notify_policy: "silent" });
   });
 });

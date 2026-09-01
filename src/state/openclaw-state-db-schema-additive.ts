@@ -11,6 +11,7 @@ import {
   backfillCronRunLogEntryJson,
   backfillDeliveryQueueEntriesFromEntryJson,
   ensureOperatorApprovalResolutionRefs,
+  repairLegacyCronReconcilingTaskRows,
   repairLegacyTaskAgentAttribution,
   repairLegacyTaskDeliveryStatuses,
   repairLegacySubagentExecutionPayloads,
@@ -488,6 +489,7 @@ export function ensureAdditiveStateColumns(db: DatabaseSync): void {
     repairLegacyTaskAgentAttribution(db);
   }
   repairLegacyTaskDeliveryStatuses(db);
+  repairLegacyCronReconcilingTaskRows(db);
   ensureColumn(db, "task_runs", "tool_use_count INTEGER");
   ensureColumn(db, "task_runs", "last_tool_name TEXT");
   ensureColumn(db, "task_runs", "detail_json TEXT");

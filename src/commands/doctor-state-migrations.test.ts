@@ -3992,6 +3992,87 @@ describe("doctor legacy state migrations", () => {
     });
   });
 
+  it("repairs cron reconciling rows already imported by the released v2026.8.1 sidecar migration", async () => {
+    const root = makeDoctorStateDir();
+    // First open creates the canonical schema, mirroring a database the
+    // released importer already wrote to.
+    closeOpenClawStateDatabaseForTest();
+    const created = openOpenClawStateDatabase({
+      env: { OPENCLAW_STATE_DIR: root } as NodeJS.ProcessEnv,
+    });
+    const stateDbPath = created.path;
+    closeOpenClawStateDatabaseForTest();
+    // v2026.8.1 imported the legacy sidecar unchanged and then archived it:
+    // no sidecar file exists anymore, but the canonical database still
+    // carries the nonterminal reconciling row and its delivery state.
+    const sqlite = requireNodeSqlite();
+    const raw = new sqlite.DatabaseSync(stateDbPath);
+    try {
+      raw
+        .prepare(
+          `
+          INSERT INTO task_runs (
+            task_id, runtime, requester_session_key, owner_key, scope_kind, agent_id, run_id,
+            task, status, delivery_status, notify_policy, created_at, last_event_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        )
+        .run(
+          "imported-reconciling",
+          "cron",
+          "",
+          "system:cron:imported-reconciling",
+          "system",
+          "ops",
+          "imported-reconciling-run",
+          "Imported reconciling cron run",
+          "reconciling",
+          "pending",
+          "done_only",
+          170,
+          180,
+        );
+      raw
+        .prepare(
+          `
+          INSERT INTO task_delivery_state (
+            task_id, requester_origin_json, last_notified_event_at
+          ) VALUES (?, ?, ?)
+        `,
+        )
+        .run("imported-reconciling", '{"channel":"test","to":"target"}', 190);
+      // Same-build reopens take the schema fast path; stamping an older
+      // app_version makes the reopen an upgrade, so open-time repairs run.
+      raw
+        .prepare(`UPDATE schema_meta SET app_version = '2026.8.0' WHERE meta_key = 'primary'`)
+        .run();
+    } finally {
+      raw.close();
+    }
+
+    // Upgrade path: the next database open settles the imported rows before
+    // task-registry hydration parses them.
+    const shared = openOpenClawStateDatabase({
+      env: { OPENCLAW_STATE_DIR: root } as NodeJS.ProcessEnv,
+    });
+    expect(
+      shared.db
+        .prepare("SELECT status, delivery_status, notify_policy FROM task_runs WHERE task_id = ?")
+        .get("imported-reconciling"),
+    ).toEqual({ status: "lost", delivery_status: "not_applicable", notify_policy: "silent" });
+    expect(
+      shared.db
+        .prepare("SELECT 1 FROM task_delivery_state WHERE task_id = ?")
+        .get("imported-reconciling"),
+    ).toBeUndefined();
+    closeOpenClawStateDatabaseForTest();
+
+    await withStateDir(root, async () => {
+      const tasks = loadTaskRegistryStateFromSqlite().tasks;
+      expect(tasks.get("imported-reconciling")?.status).toBe("lost");
+    });
+  });
+
   it("keeps recorded delivery state for rows that were already lost before migration", async () => {
     const root = makeDoctorStateDir();
     const { taskRunsPath } = writeLegacyTaskStateSidecars(root);
