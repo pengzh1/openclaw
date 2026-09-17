@@ -1,0 +1,109 @@
+{
+  "mode": "after",
+  "invalidUrl": "https://user:pass@example.com/hook",
+  "validUrl": "https://example.com/hook",
+  "inlineError": "Webhook URL must be a valid http(s):// URL without embedded credentials.",
+  "submitDisabledWhileInvalid": true,
+  "submitted": {
+    "name": "Webhook URL boundary proof",
+    "description": "",
+    "agentId": "main",
+    "enabled": true,
+    "sessionTarget": "isolated",
+    "wakeMode": "now",
+    "delivery": {
+      "mode": "webhook",
+      "to": "https://example.com/hook",
+      "bestEffort": false
+    },
+    "schedule": {
+      "kind": "every",
+      "everyMs": 1800000
+    },
+    "payload": {
+      "kind": "agentTurn",
+      "message": "Synthetic disabled proof fixture"
+    }
+  },
+  "reply": {
+    "type": "res",
+    "id": "28:b1797dbd-83bb-4035-96ca-3787eff88abb",
+    "ok": true,
+    "payload": {
+      "id": "19dd104c-a7bc-4a77-b4d5-5e8fb2e6e878",
+      "agentId": "main",
+      "name": "Webhook URL boundary proof",
+      "enabled": true,
+      "createdAtMs": 1789660065578,
+      "updatedAtMs": 1789660065578,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 1800000,
+        "anchorMs": 1789660065578
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Synthetic disabled proof fixture",
+        "toolsAllow": [
+          "*"
+        ]
+      },
+      "delivery": {
+        "mode": "webhook",
+        "to": "https://example.com/hook",
+        "bestEffort": false
+      },
+      "state": {
+        "nextRunAtMs": 1789661865578
+      },
+      "scheduledToolPolicy": {
+        "version": 1,
+        "mode": "trusted"
+      },
+      "configRevision": "sha256:vEfqBFNyyk4YjKdJGb18lRQ8nalIu54Uoo0_ptSRatU",
+      "nextRunAtMs": 1789661865578,
+      "deliveryPreview": {
+        "label": "webhook:https://example.com/hook",
+        "detail": "webhook"
+      }
+    }
+  },
+  "cliReadback": {
+    "id": "19dd104c-a7bc-4a77-b4d5-5e8fb2e6e878",
+    "agentId": "main",
+    "name": "Webhook URL boundary proof",
+    "enabled": true,
+    "createdAtMs": 1789660065578,
+    "schedule": {
+      "kind": "every",
+      "everyMs": 1800000,
+      "anchorMs": 1789660065578
+    },
+    "sessionTarget": "isolated",
+    "wakeMode": "now",
+    "payload": {
+      "kind": "agentTurn",
+      "message": "Synthetic disabled proof fixture",
+      "toolsAllow": [
+        "*"
+      ]
+    },
+    "delivery": {
+      "mode": "webhook",
+      "to": "https://example.com/hook",
+      "bestEffort": false
+    },
+    "scheduledToolPolicy": {
+      "version": 1,
+      "mode": "trusted"
+    },
+    "state": {
+      "nextRunAtMs": 1789661865578
+    },
+    "updatedAtMs": 1789660065578,
+    "configRevision": "sha256:vEfqBFNyyk4YjKdJGb18lRQ8nalIu54Uoo0_ptSRatU",
+    "nextRunAtMs": 1789661865578
+  }
+}
